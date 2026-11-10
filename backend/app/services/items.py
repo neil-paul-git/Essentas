@@ -8,6 +8,7 @@ from app.models.item import Item
 from app.providers.food_data import FoodDataProvider
 from app.repositories import items as items_repo
 from app.schemas.item import ItemCreate, ItemListParams, ItemUpdate
+from app.services import categories
 from app.services import products as products_service
 from app.services import spoilage as spoilage_service
 from app.services.errors import InvalidInputError, NotFoundError
@@ -30,25 +31,40 @@ def create_item(
 
     # user_id comes from the verified token, never from the request body.
     item = Item(**values, user_id=user_id)
-    if item.expires_on is None:
-        _estimate_expiry(session, item)
+    fill_expiry, fill_category = item.expires_on is None, data.category is None
+    if fill_expiry or fill_category:
+        match = _match_food(session, item)
+        if fill_expiry:
+            _set_estimated_expiry(item, match)
+        if fill_category:
+            _set_category(item, match)
     return items_repo.save(session, item)
 
 
 # Fields the FoodKeeper estimate depends on: changing one makes an old estimate stale.
-_ESTIMATE_INPUTS = ("name", "location", "added_on", "barcode")
+_ESTIMATE_INPUTS = frozenset({"name", "location", "added_on", "barcode"})
+# The category only depends on what the food is, not where or since when it's stored.
+_CATEGORY_INPUTS = frozenset({"name", "barcode"})
 
 
-def _estimate_expiry(session: Session, item: Item) -> None:
-    """Set (or replace) a FoodKeeper estimate. Clears the expiry if no food matches or
-    FoodKeeper only has a note for this location (e.g. "Not Recommended")."""
-    result = spoilage_service.estimate_for(
+def _match_food(session: Session, item: Item) -> spoilage_service.SpoilageEstimate | None:
+    """One FoodKeeper match feeds both the expiry estimate and the category."""
+    return spoilage_service.estimate_for(
         session, item.name, item.location, item.stored_since or item.added_on, item.barcode
     )
+
+
+def _set_estimated_expiry(item: Item, result: spoilage_service.SpoilageEstimate | None) -> None:
+    """Set (or replace) a FoodKeeper estimate. Clears the expiry if no food matches or
+    FoodKeeper only has a note for this location (e.g. "Not Recommended")."""
     found = result is not None and result.expires_on is not None
     item.expires_on = result.expires_on if found else None
     item.expires_on_latest = result.expires_on_latest if found else None
     item.expiry_estimated = found
+
+
+def _set_category(item: Item, result: spoilage_service.SpoilageEstimate | None) -> None:
+    item.category = categories.from_foodkeeper(result.food.category if result else None)
 
 
 def list_items(session: Session, user_id: UUID, params: ItemListParams) -> list[Item]:
@@ -76,10 +92,8 @@ def update_item(
         products_service.get_or_fetch(session, provider, changes["barcode"])
 
     # Compare against the stored values, so re-sending an unchanged field is a no-op.
-    inputs_changed = any(
-        field in changes and changes[field] != getattr(item, field) for field in _ESTIMATE_INPUTS
-    )
-    if "location" in changes and changes["location"] != item.location:
+    changed = {field for field in changes if changes[field] != getattr(item, field)}
+    if "location" in changed:
         changes["stored_since"] = date.today()
 
     if "expires_on" in changes:
@@ -91,11 +105,19 @@ def update_item(
     # Never overwrite a confirmed date. An empty expiry counts as re-estimable, so fixing
     # a misspelt name can produce a first estimate.
     is_confirmed = item.expires_on is not None and not item.expiry_estimated
-    reestimate = inputs_changed and "expires_on" not in changes and not is_confirmed
+    reestimate = (
+        bool(changed & _ESTIMATE_INPUTS) and "expires_on" not in changes and not is_confirmed
+    )
+    # A category the client sends wins; otherwise a new name or barcode re-derives it.
+    recategorize = bool(changed & _CATEGORY_INPUTS) and "category" not in changes
 
     item.sqlmodel_update(changes)
-    if reestimate:
-        _estimate_expiry(session, item)
+    if reestimate or recategorize:
+        match = _match_food(session, item)
+        if reestimate:
+            _set_estimated_expiry(item, match)
+        if recategorize:
+            _set_category(item, match)
     item.updated_at = utcnow()
     return items_repo.save(session, item)
 

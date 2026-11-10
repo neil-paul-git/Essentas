@@ -15,6 +15,27 @@ class Location(StrEnum):
     PANTRY = "pantry"
 
 
+class Category(StrEnum):
+    """Our own short list of food groups (for filters and an icon grid), mapped from
+    FoodKeeper categories and Open Food Facts tags in app.services.categories."""
+
+    DAIRY_EGGS = "dairy_eggs"
+    MEAT_POULTRY = "meat_poultry"
+    SEAFOOD = "seafood"
+    FRUIT = "fruit"
+    VEGETABLES = "vegetables"
+    BAKERY = "bakery"
+    GRAINS_PASTA = "grains_pasta"
+    PLANT_PROTEIN = "plant_protein"
+    CONDIMENTS_CANNED = "condiments_canned"
+    DRINKS = "drinks"
+    PREPARED = "prepared"
+    FROZEN = "frozen"
+    SNACKS = "snacks"
+    PANTRY_BAKING = "pantry_baking"
+    OTHER = "other"
+
+
 class Item(SQLModel, table=True):
     """One thing in a user's kitchen. Input is validated by app.schemas.item, not here:
     SQLModel table classes skip validation when constructed."""
@@ -41,6 +62,17 @@ class Item(SQLModel, table=True):
             length=20,
             values_callable=lambda enum: [member.value for member in enum],
         )
+    )
+    # VARCHAR like location, so merging or renaming categories later is a plain UPDATE.
+    category: Category = Field(
+        default=Category.OTHER,
+        sa_type=sa.Enum(
+            Category,
+            native_enum=False,
+            length=30,
+            values_callable=lambda enum: [member.value for member in enum],
+        ),
+        sa_column_kwargs={"server_default": Category.OTHER.value},
     )
     quantity: float
     unit: str | None = Field(default=None, max_length=20)

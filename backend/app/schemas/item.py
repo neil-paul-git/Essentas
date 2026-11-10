@@ -12,7 +12,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.models.item import Location
+from app.models.item import Category, Location
 from app.schemas.product import BARCODE_PATTERN
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
@@ -30,6 +30,7 @@ class ItemCreate(BaseModel):
 
     name: Name | None = None  # filled from the product when a barcode is given
     location: Location
+    category: Category | None = None  # worked out from the name/product when omitted
     quantity: Quantity = 1
     unit: Unit | None = None
     added_on: date = Field(default_factory=date.today)
@@ -50,6 +51,7 @@ class ItemUpdate(BaseModel):
 
     name: Name | None = None
     location: Location | None = None
+    category: Category | None = None
     quantity: Quantity | None = None
     unit: Unit | None = None
     added_on: date | None = None
@@ -60,7 +62,7 @@ class ItemUpdate(BaseModel):
     def _required_fields_not_null(self) -> Self:
         # "Field omitted" means "leave it alone"; an explicit null is only allowed for
         # columns that may be empty (unit, expires_on, barcode).
-        for field in ("name", "location", "quantity", "added_on"):
+        for field in ("name", "location", "category", "quantity", "added_on"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self
@@ -106,6 +108,7 @@ class ItemRead(BaseModel):
     id: UUID
     name: str
     location: Location
+    category: Category
     quantity: float
     unit: str | None
     added_on: date
