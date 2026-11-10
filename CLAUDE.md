@@ -19,6 +19,9 @@ see when items are likely to spoil, and get recipes built from what they already
 **Not in scope for now:** remote push notifications, payments, social features, web app,
 on-device ML, anything needing a paid Apple Developer account or a custom native build.
 
+Frontend product decisions (expiry labels, disclaimer, inventory page, "+" button):
+[docs/frontend-notes.md](docs/frontend-notes.md).
+
 ## Stack
 - **Mobile:** Expo (React Native, TypeScript), Expo Router. **Expo Go compatible only.**
   Do not add libraries that need a development build or custom native code.
