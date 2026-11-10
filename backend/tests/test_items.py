@@ -31,6 +31,7 @@ def test_create_item(client, auth_headers) -> None:
     assert item["quantity"] == 1
     assert item["added_on"] == date.today().isoformat()  # defaulted
     assert item["expires_on"] == "2026-11-20"
+    assert item["expiry_estimated"] is False  # the client sent the date
     assert "user_id" not in item
 
 

@@ -59,6 +59,7 @@ class SpoilageEstimate:
     location: Location
     storage: StorageInfo | None
     expires_on: date | None
+    expires_on_latest: date | None
     matched_text: str
 
 
@@ -149,12 +150,24 @@ def match_food(
     return None
 
 
-def expiry_from(added_on: date, storage: StorageInfo | None) -> date | None:
-    """Conservative: the low end of the range. Months/years are approximated as 30/365
-    days, which is plenty precise for "roughly when will this go off"."""
-    if storage is None or storage.min is None or storage.unit not in _DAYS_PER_UNIT:
+def _plus(added_on: date, amount: float | None, unit: str | None) -> date | None:
+    """Months/years are approximated as 30/365 days, which is plenty precise for
+    "roughly when will this go off"."""
+    if amount is None or unit not in _DAYS_PER_UNIT:
         return None
-    return added_on + timedelta(days=math.floor(storage.min * _DAYS_PER_UNIT[storage.unit]))
+    return added_on + timedelta(days=math.floor(amount * _DAYS_PER_UNIT[unit]))
+
+
+def expiry_from(added_on: date, storage: StorageInfo | None) -> date | None:
+    """Conservative: the low end of the range."""
+    return _plus(added_on, storage.min, storage.unit) if storage else None
+
+
+def latest_expiry_from(added_on: date, storage: StorageInfo | None) -> date | None:
+    """The high end of the range. Falls back to the low end if FoodKeeper gives no max."""
+    if storage is None or storage.min is None:
+        return None
+    return _plus(added_on, storage.max if storage.max is not None else storage.min, storage.unit)
 
 
 def estimate(
@@ -173,6 +186,7 @@ def estimate(
         location=location,
         storage=storage,
         expires_on=expiry_from(added_on, storage),
+        expires_on_latest=latest_expiry_from(added_on, storage),
         matched_text=matched_text,
     )
 

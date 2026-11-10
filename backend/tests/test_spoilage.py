@@ -9,6 +9,7 @@ from app.services.spoilage import (
     _parse_food,
     estimate,
     expiry_from,
+    latest_expiry_from,
     load_foods,
     match_food,
     words,
@@ -101,6 +102,20 @@ def test_later_texts_are_fallbacks() -> None:
 )
 def test_expiry_uses_low_end_of_range(storage, expected) -> None:
     assert expiry_from(ADDED, storage) == expected
+
+
+@pytest.mark.parametrize(
+    ("storage", "expected"),
+    [
+        (StorageInfo(min=3, max=5, unit="days"), ADDED + timedelta(days=5)),
+        (StorageInfo(min=6, max=9, unit="months"), ADDED + timedelta(days=270)),
+        (StorageInfo(min=7, unit="days"), ADDED + timedelta(days=7)),  # no max: low end
+        (StorageInfo(note="Not Recommended"), None),
+        (None, None),
+    ],
+)
+def test_latest_expiry_uses_high_end_of_range(storage, expected) -> None:
+    assert latest_expiry_from(ADDED, storage) == expected
 
 
 # --- The real FoodKeeper file --------------------------------------------------------

@@ -20,7 +20,13 @@ class Item(SQLModel, table=True):
     SQLModel table classes skip validation when constructed."""
 
     __tablename__ = "items"
-    __table_args__ = (sa.CheckConstraint("quantity > 0", name="ck_items_quantity_positive"),)
+    __table_args__ = (
+        sa.CheckConstraint("quantity > 0", name="ck_items_quantity_positive"),
+        sa.CheckConstraint(
+            "expiry_estimated OR expires_on_latest IS NULL",
+            name="ck_items_range_only_when_estimated",
+        ),
+    )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     # Supabase Auth user id (the JWT "sub" claim). Supabase owns the users table.
@@ -39,7 +45,12 @@ class Item(SQLModel, table=True):
     quantity: float
     unit: str | None = Field(default=None, max_length=20)
     added_on: date = Field(default_factory=date.today)
+    # Either a date the user confirmed (e.g. printed on the pack), or a FoodKeeper estimate.
+    # For an estimate, expires_on is the early end of the range and expires_on_latest the
+    # late end, so sorting by expires_on is always the cautious order.
     expires_on: date | None = None
+    expiry_estimated: bool = Field(default=False, sa_column_kwargs={"server_default": sa.false()})
+    expires_on_latest: date | None = None
     created_at: datetime = Field(default_factory=utcnow, sa_type=sa.DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=utcnow, sa_type=sa.DateTime(timezone=True))
 

@@ -8,6 +8,7 @@ from app.providers.food_data import FoodDataProvider
 from app.repositories import items as items_repo
 from app.schemas.item import ItemCreate, ItemUpdate
 from app.services import products as products_service
+from app.services import spoilage as spoilage_service
 from app.services.errors import InvalidInputError, NotFoundError
 
 
@@ -27,7 +28,23 @@ def create_item(
         raise InvalidInputError("name is required: the product has no name on record")
 
     # user_id comes from the verified token, never from the request body.
-    return items_repo.save(session, Item(**values, user_id=user_id))
+    item = Item(**values, user_id=user_id)
+    if item.expires_on is None:
+        _fill_estimated_expiry(session, item)
+    return items_repo.save(session, item)
+
+
+def _fill_estimated_expiry(session: Session, item: Item) -> None:
+    """Fill in a FoodKeeper estimate. Leaves the expiry empty if no food matches or
+    FoodKeeper only has a note for this location (e.g. "Not Recommended")."""
+    result = spoilage_service.estimate_for(
+        session, item.name, item.location, item.added_on, item.barcode
+    )
+    if result is None or result.expires_on is None:
+        return
+    item.expires_on = result.expires_on
+    item.expires_on_latest = result.expires_on_latest
+    item.expiry_estimated = True
 
 
 def list_items(session: Session, user_id: UUID, location: Location | None = None) -> list[Item]:
@@ -53,6 +70,12 @@ def update_item(
 
     if changes.get("barcode") is not None:
         products_service.get_or_fetch(session, provider, changes["barcode"])
+
+    if "expires_on" in changes:
+        # A date from the client is confirmed; null clears the expiry. Either way any
+        # earlier estimate no longer applies.
+        changes["expiry_estimated"] = False
+        changes["expires_on_latest"] = None
 
     item.sqlmodel_update(changes)
     item.updated_at = utcnow()
