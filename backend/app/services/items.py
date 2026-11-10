@@ -4,10 +4,10 @@ from uuid import UUID
 from sqlmodel import Session
 
 from app.core.time import utcnow
-from app.models.item import Item, Location
+from app.models.item import Item
 from app.providers.food_data import FoodDataProvider
 from app.repositories import items as items_repo
-from app.schemas.item import ItemCreate, ItemUpdate
+from app.schemas.item import ItemCreate, ItemListParams, ItemUpdate
 from app.services import products as products_service
 from app.services import spoilage as spoilage_service
 from app.services.errors import InvalidInputError, NotFoundError
@@ -51,8 +51,8 @@ def _estimate_expiry(session: Session, item: Item) -> None:
     item.expiry_estimated = found
 
 
-def list_items(session: Session, user_id: UUID, location: Location | None = None) -> list[Item]:
-    return items_repo.list_for_user(session, user_id, location)
+def list_items(session: Session, user_id: UUID, params: ItemListParams) -> list[Item]:
+    return items_repo.list_for_user(session, user_id, params)
 
 
 def get_item(session: Session, user_id: UUID, item_id: UUID) -> Item:

@@ -96,7 +96,7 @@ I'm new to Claude Code and want **small, reviewable steps**.
 - [x] Backend auth: Supabase JWT verification (`get_current_user`, `GET /me`)
 - [x] Inventory models + CRUD
 - [x] Barcode lookup with product cache (Open Food Facts; USDA fallback still to do)
-- [ ] Spoilage estimates (FoodKeeper): estimate endpoint, auto-fill on create, re-estimate on PATCH done; "use it soon" next
+- [x] Spoilage estimates (FoodKeeper): estimate endpoint, auto-fill + re-estimate on items, "use it soon" via `GET /items?expires_by=&sort=expiring`
 - [ ] Expo app skeleton + auth
 - [ ] Recipe suggestions (LLM)
 - [ ] Photo recognition (LLM vision)

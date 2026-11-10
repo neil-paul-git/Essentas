@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from enum import StrEnum
 from typing import Annotated, Any, Self
 from uuid import UUID
 
@@ -63,6 +64,28 @@ class ItemUpdate(BaseModel):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self
+
+
+class ItemSort(StrEnum):
+    NEWEST = "newest"  # most recently added first
+    OLDEST = "oldest"
+    NAME = "name"  # A-Z, ignoring case
+    EXPIRING = "expiring"  # soonest expiry first, items with no expiry last
+
+
+class ItemListParams(BaseModel):
+    """Query parameters for GET /items. Filters are optional and combine with AND, so the
+    app can mix them freely: ?location=fridge&expires_by=2026-11-11&sort=name"""
+
+    # Reject unknown parameters, so a typo like ?sortt=name fails instead of being ignored.
+    model_config = ConfigDict(extra="forbid")
+
+    location: Location | None = None
+    # On or before this date, so already-expired items are included. The app sends a date
+    # (e.g. its local tomorrow for "use it soon") rather than a day count, because the
+    # server's "today" in UTC can differ from the user's.
+    expires_by: date | None = None
+    sort: ItemSort = ItemSort.NEWEST
 
 
 class ProductSummary(BaseModel):

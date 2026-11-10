@@ -1,10 +1,10 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentUserDep, FoodDataProviderDep, SessionDep
-from app.models.item import Location
-from app.schemas.item import ItemCreate, ItemRead, ItemUpdate
+from app.schemas.item import ItemCreate, ItemListParams, ItemRead, ItemUpdate
 from app.services import items as items_service
 
 router = APIRouter(prefix="/items", tags=["items"])
@@ -20,9 +20,11 @@ def create_item(
 
 @router.get("", response_model=list[ItemRead])
 def list_items(
-    user: CurrentUserDep, session: SessionDep, location: Location | None = None
+    params: Annotated[ItemListParams, Query()], user: CurrentUserDep, session: SessionDep
 ) -> list[ItemRead]:
-    items = items_service.list_items(session, user.id, location)
+    """List the caller's items. For "use it soon", the app sends its local tomorrow:
+    ?expires_by=<tomorrow>&sort=expiring (already-expired items are included)."""
+    items = items_service.list_items(session, user.id, params)
     return [ItemRead.model_validate(item) for item in items]
 
 
