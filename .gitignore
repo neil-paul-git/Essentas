@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Expo / Node (mobile/)
+node_modules/
+.expo/
+dist/
+web-build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
