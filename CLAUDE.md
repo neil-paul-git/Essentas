@@ -79,6 +79,7 @@ I'm new to Claude Code and want **small, reviewable steps**.
 - **Explain briefly** what you changed and why at the end of each task. I need to be able to
   explain this code in interviews. Point out anything non-obvious.
 - When done, suggest the next small task, but don't start it.
+- Do not append co-author attibutions or AI generated code disclosures.
 
 ## Keeping context and token use low
 - Don't read or search `node_modules/`, `.venv/`, lockfiles, build output, or data dumps.
