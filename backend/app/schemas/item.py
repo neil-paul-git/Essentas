@@ -84,6 +84,7 @@ class ItemRead(BaseModel):
     quantity: float
     unit: str | None
     added_on: date
+    stored_since: date | None  # set by the server when the item changes location
     expires_on: date | None  # for an estimate, the early end of the range
     expiry_estimated: bool  # set by the server; clients can't send it
     expires_on_latest: date | None  # late end of an estimate; None for confirmed dates

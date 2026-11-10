@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from sqlmodel import Session
@@ -30,21 +31,24 @@ def create_item(
     # user_id comes from the verified token, never from the request body.
     item = Item(**values, user_id=user_id)
     if item.expires_on is None:
-        _fill_estimated_expiry(session, item)
+        _estimate_expiry(session, item)
     return items_repo.save(session, item)
 
 
-def _fill_estimated_expiry(session: Session, item: Item) -> None:
-    """Fill in a FoodKeeper estimate. Leaves the expiry empty if no food matches or
+# Fields the FoodKeeper estimate depends on: changing one makes an old estimate stale.
+_ESTIMATE_INPUTS = ("name", "location", "added_on", "barcode")
+
+
+def _estimate_expiry(session: Session, item: Item) -> None:
+    """Set (or replace) a FoodKeeper estimate. Clears the expiry if no food matches or
     FoodKeeper only has a note for this location (e.g. "Not Recommended")."""
     result = spoilage_service.estimate_for(
-        session, item.name, item.location, item.added_on, item.barcode
+        session, item.name, item.location, item.stored_since or item.added_on, item.barcode
     )
-    if result is None or result.expires_on is None:
-        return
-    item.expires_on = result.expires_on
-    item.expires_on_latest = result.expires_on_latest
-    item.expiry_estimated = True
+    found = result is not None and result.expires_on is not None
+    item.expires_on = result.expires_on if found else None
+    item.expires_on_latest = result.expires_on_latest if found else None
+    item.expiry_estimated = found
 
 
 def list_items(session: Session, user_id: UUID, location: Location | None = None) -> list[Item]:
@@ -71,13 +75,27 @@ def update_item(
     if changes.get("barcode") is not None:
         products_service.get_or_fetch(session, provider, changes["barcode"])
 
+    # Compare against the stored values, so re-sending an unchanged field is a no-op.
+    inputs_changed = any(
+        field in changes and changes[field] != getattr(item, field) for field in _ESTIMATE_INPUTS
+    )
+    if "location" in changes and changes["location"] != item.location:
+        changes["stored_since"] = date.today()
+
     if "expires_on" in changes:
         # A date from the client is confirmed; null clears the expiry. Either way any
         # earlier estimate no longer applies.
         changes["expiry_estimated"] = False
         changes["expires_on_latest"] = None
 
+    # Never overwrite a confirmed date. An empty expiry counts as re-estimable, so fixing
+    # a misspelt name can produce a first estimate.
+    is_confirmed = item.expires_on is not None and not item.expiry_estimated
+    reestimate = inputs_changed and "expires_on" not in changes and not is_confirmed
+
     item.sqlmodel_update(changes)
+    if reestimate:
+        _estimate_expiry(session, item)
     item.updated_at = utcnow()
     return items_repo.save(session, item)
 

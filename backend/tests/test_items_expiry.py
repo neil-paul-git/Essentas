@@ -115,3 +115,125 @@ def test_db_rejects_range_on_confirmed_expiry(session) -> None:
 
     with pytest.raises(IntegrityError):
         session.commit()
+
+
+# --- Re-estimating on PATCH -----------------------------------------------------------
+
+# Bought three months ago, so "counts from today" and "counts from added_on" differ.
+LONG_AGO = date.today() - timedelta(days=90)
+
+
+def _patch(client, headers, item_id, **body) -> dict:
+    response = client.patch(f"/api/v1/items/{item_id}", json=body, headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_fixing_misspelt_name_gives_first_estimate(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, **{**BUTTER, "name": "Buttr"})
+    assert created["expires_on"] is None
+
+    updated = _patch(client, headers, created["id"], name="Butter")
+
+    assert updated["expiry_estimated"] is True
+    assert updated["expires_on"] == (ADDED + timedelta(days=180)).isoformat()
+
+
+def test_renaming_to_unknown_food_clears_estimate(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, **BUTTER)
+
+    updated = _patch(client, headers, created["id"], name="Mystery jar")
+
+    assert updated["expiry_estimated"] is False
+    assert updated["expires_on"] is None
+    assert updated["expires_on_latest"] is None
+
+
+def test_changing_added_on_shifts_estimate(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, **BUTTER)
+
+    updated = _patch(client, headers, created["id"], added_on="2026-11-01")
+
+    assert updated["expires_on"] == (date(2026, 11, 1) + timedelta(days=180)).isoformat()
+
+
+def test_move_counts_from_today_not_added_on(client, auth_headers) -> None:
+    """Butter frozen three months ago, moved to the fridge today: 1-2 fridge months from now."""
+    headers = auth_headers()
+    created = _create(client, headers, **{**BUTTER, "added_on": LONG_AGO.isoformat()})
+
+    updated = _patch(client, headers, created["id"], location="fridge")
+
+    today = date.today()
+    assert updated["stored_since"] == today.isoformat()
+    assert updated["added_on"] == LONG_AGO.isoformat()  # still when it was bought
+    assert updated["expires_on"] == (today + timedelta(days=30)).isoformat()
+    assert updated["expires_on_latest"] == (today + timedelta(days=60)).isoformat()
+
+
+def test_rename_after_move_still_counts_from_move(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(
+        client, headers, **{**BUTTER, "name": "Buttr", "added_on": LONG_AGO.isoformat()}
+    )
+    _patch(client, headers, created["id"], location="fridge")
+
+    updated = _patch(client, headers, created["id"], name="Butter")
+
+    assert updated["expires_on"] == (date.today() + timedelta(days=30)).isoformat()
+
+
+def test_move_to_not_recommended_location_clears_estimate(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, name="Artichokes", location="fridge")
+    assert created["expiry_estimated"] is True
+
+    updated = _patch(client, headers, created["id"], location="freezer")
+
+    assert updated["expiry_estimated"] is False
+    assert updated["expires_on"] is None
+
+
+def test_move_keeps_confirmed_expiry(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, **BUTTER, expires_on="2026-12-01")
+
+    updated = _patch(client, headers, created["id"], location="fridge", name="Salted butter")
+
+    assert updated["expires_on"] == "2026-12-01"
+    assert updated["expiry_estimated"] is False
+    assert updated["stored_since"] == date.today().isoformat()  # the move is still recorded
+
+
+def test_expiry_sent_with_move_is_confirmed(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, **BUTTER)
+
+    updated = _patch(client, headers, created["id"], location="fridge", expires_on="2026-12-24")
+
+    assert updated["expires_on"] == "2026-12-24"
+    assert updated["expiry_estimated"] is False
+
+
+def test_resending_same_location_is_not_a_move(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, **{**BUTTER, "added_on": LONG_AGO.isoformat()})
+
+    updated = _patch(client, headers, created["id"], location="freezer")
+
+    assert updated["stored_since"] is None
+    assert updated["expires_on"] == created["expires_on"]
+
+
+def test_client_cannot_set_stored_since(client, auth_headers) -> None:
+    headers = auth_headers()
+    created = _create(client, headers, **BUTTER)
+
+    response = client.patch(
+        f"/api/v1/items/{created['id']}", json={"stored_since": "2026-01-01"}, headers=headers
+    )
+
+    assert response.status_code == 422

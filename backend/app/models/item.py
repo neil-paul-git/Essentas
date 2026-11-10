@@ -45,6 +45,9 @@ class Item(SQLModel, table=True):
     quantity: float
     unit: str | None = Field(default=None, max_length=20)
     added_on: date = Field(default_factory=date.today)
+    # When the item went into its current location; None means "since added_on".
+    # Storage times restart on a move: thawed meat keeps 1-2 days from going into the fridge.
+    stored_since: date | None = None
     # Either a date the user confirmed (e.g. printed on the pack), or a FoodKeeper estimate.
     # For an estimate, expires_on is the early end of the range and expires_on_latest the
     # late end, so sorting by expires_on is always the cautious order.
