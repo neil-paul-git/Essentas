@@ -80,6 +80,8 @@ class ItemListParams(BaseModel):
     # Reject unknown parameters, so a typo like ?sortt=name fails instead of being ignored.
     model_config = ConfigDict(extra="forbid")
 
+    # Words to find in the item's name or its product's name/brand; every word must match.
+    q: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
     location: Location | None = None
     # On or before this date, so already-expired items are included. The app sends a date
     # (e.g. its local tomorrow for "use it soon") rather than a day count, because the

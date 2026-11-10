@@ -1,8 +1,10 @@
-"""GET /api/v1/items: filtering and sorting, including the "use it soon" view."""
+"""GET /api/v1/items: search, filtering and sorting, including the "use it soon" view."""
 
 from datetime import date, timedelta
 
 import pytest
+
+from app.providers.food_data import ProductData
 
 TODAY = date.today()
 TOMORROW = TODAY + timedelta(days=1)
@@ -98,9 +100,68 @@ def test_default_sort_is_newest(client, auth_headers) -> None:
     assert _names(client, headers) == ["Recent", "Old"]
 
 
+# --- Search (?q=) ---------------------------------------------------------------------
+
+
+def test_search_matches_part_of_name_ignoring_case(client, auth_headers) -> None:
+    headers = auth_headers()
+    _create(client, headers, "Semi-skimmed Milk")
+    _create(client, headers, "Oat milk")
+    _create(client, headers, "Bread")
+
+    assert sorted(_names(client, headers, q="MILK")) == ["Oat milk", "Semi-skimmed Milk"]
+
+
+def test_search_needs_every_word_in_any_order(client, auth_headers) -> None:
+    headers = auth_headers()
+    _create(client, headers, "Whole milk")
+    _create(client, headers, "Whole wheat bread")
+
+    assert _names(client, headers, q="milk whole") == ["Whole milk"]
+
+
+def test_search_matches_linked_product_name_and_brand(client, auth_headers, food_provider) -> None:
+    headers = auth_headers()
+    food_provider.products["3017620422003"] = ProductData(
+        barcode="3017620422003", name="Nutella", brand="Ferrero"
+    )
+    _create(client, headers, "Chocolate spread", barcode="3017620422003")
+    _create(client, headers, "Jam")
+
+    assert _names(client, headers, q="ferrero") == ["Chocolate spread"]
+    assert _names(client, headers, q="nutella") == ["Chocolate spread"]
+
+
+def test_search_treats_wildcards_literally(client, auth_headers) -> None:
+    headers = auth_headers()
+    _create(client, headers, "Chocolate 70% cocoa")
+    _create(client, headers, "Chocolate 70 cocoa")
+
+    assert _names(client, headers, q="70%") == ["Chocolate 70% cocoa"]
+    assert _names(client, headers, q="_") == []
+
+
+def test_blank_search_lists_everything(client, auth_headers) -> None:
+    headers = auth_headers()
+    _create(client, headers, "Milk")
+    _create(client, headers, "Bread")
+
+    assert len(_names(client, headers, q="   ")) == 2
+
+
+def test_search_combines_with_filters_and_other_users_hidden(client, auth_headers) -> None:
+    alice, bob = auth_headers(), auth_headers()
+    _create(client, alice, "Milk", location="fridge")
+    _create(client, alice, "Powdered milk", location="pantry")
+    _create(client, bob, "Milk", location="fridge")
+
+    assert _names(client, alice, q="milk", location="fridge") == ["Milk"]
+
+
 @pytest.mark.parametrize(
     "params",
     [
+        pytest.param({"q": "x" * 101}, id="search-too-long"),
         pytest.param({"sort": "price"}, id="unknown-sort"),
         pytest.param({"expires_by": "tomorrow"}, id="bad-date"),
         pytest.param({"sortt": "name"}, id="unknown-parameter"),
