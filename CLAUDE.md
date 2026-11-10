@@ -62,6 +62,7 @@ Backend commands run from `backend/` with the venv active.
 - Lint/format: `ruff check .` / `ruff format .`
 - Apply migrations: `alembic upgrade head` (targets `DATABASE_URL`, i.e. Supabase)
 - New migration: `alembic revision --autogenerate -m "add items table"` (review the file before applying)
+- Rebuild FoodKeeper data: `python scripts/build_foodkeeper.py` (see [docs/data-sources.md](docs/data-sources.md))
 - Mobile: `npx expo start`
 
 ## How to work with me (important)
@@ -95,7 +96,7 @@ I'm new to Claude Code and want **small, reviewable steps**.
 - [x] Backend auth: Supabase JWT verification (`get_current_user`, `GET /me`)
 - [x] Inventory models + CRUD
 - [x] Barcode lookup with product cache (Open Food Facts; USDA fallback still to do)
-- [ ] Spoilage estimates (FoodKeeper)
+- [ ] Spoilage estimates (FoodKeeper): estimate endpoint done; auto-fill on items + "use it soon" next
 - [ ] Expo app skeleton + auth
 - [ ] Recipe suggestions (LLM)
 - [ ] Photo recognition (LLM vision)
