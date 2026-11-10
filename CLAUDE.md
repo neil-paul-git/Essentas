@@ -60,6 +60,8 @@ Backend commands run from `backend/` with the venv active.
 - Backend dev server: `uvicorn app.main:app --reload`
 - Backend tests: `pytest`
 - Lint/format: `ruff check .` / `ruff format .`
+- Apply migrations: `alembic upgrade head` (targets `DATABASE_URL`, i.e. Supabase)
+- New migration: `alembic revision --autogenerate -m "add items table"` (review the file before applying)
 - Mobile: `npx expo start`
 
 ## How to work with me (important)
