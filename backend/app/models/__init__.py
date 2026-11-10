@@ -3,3 +3,7 @@
 Import every model module here. Alembic's env.py imports this package so that
 autogenerate can see all tables on SQLModel.metadata.
 """
+
+from app.models.item import Item, Location
+
+__all__ = ["Item", "Location"]

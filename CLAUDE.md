@@ -91,7 +91,8 @@ I'm new to Claude Code and want **small, reviewable steps**.
 
 ## Status
 - [x] Repo, README, license
-- [ ] Backend skeleton: settings, health check, DB connection, first migration
+- [x] Backend skeleton: settings, health check, DB connection, first migration
+- [x] Backend auth: Supabase JWT verification (`get_current_user`, `GET /me`)
 - [ ] Inventory models + CRUD
 - [ ] Barcode lookup with product cache
 - [ ] Spoilage estimates (FoodKeeper)

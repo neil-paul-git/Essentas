@@ -8,12 +8,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """App configuration, read from environment variables (and backend/.env if present)."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        # Validation errors would otherwise echo the input values, i.e. secrets, into logs.
+        hide_input_in_errors=True,
+    )
 
     app_name: str = "Essentas API"
     app_version: str = "0.1.0"
     environment: Literal["dev", "test", "prod"] = "dev"
     database_url: str
+    # Project URL, e.g. https://<project-ref>.supabase.co. Used to verify access tokens.
+    supabase_url: str
+    # Only for projects on Supabase's legacy shared-secret (HS256) JWTs. Leave unset for
+    # asymmetric signing keys; the API then fetches Supabase's public keys (JWKS) instead.
+    supabase_jwt_secret: str | None = None
 
     @field_validator("database_url")
     @classmethod
