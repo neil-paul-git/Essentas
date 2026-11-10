@@ -1,13 +1,11 @@
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 
-
-def utcnow() -> datetime:
-    return datetime.now(UTC)
+from app.core.time import utcnow
 
 
 class Location(StrEnum):

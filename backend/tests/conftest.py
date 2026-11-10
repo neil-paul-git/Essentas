@@ -8,6 +8,8 @@ from uuid import UUID, uuid4
 # These override real values in the shell or backend/.env, so tests never touch Supabase.
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["SUPABASE_URL"] = "https://test-project.supabase.co"
+# ".invalid" never resolves, so a provider accidentally left un-mocked fails fast.
+os.environ["OFF_BASE_URL"] = "https://off.invalid"
 
 import jwt  # noqa: E402
 import pytest  # noqa: E402
@@ -20,9 +22,36 @@ from app.core.config import Settings  # noqa: E402
 from app.db.session import get_session  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.providers.auth import SupabaseTokenVerifier, get_token_verifier  # noqa: E402
+from app.providers.food_data import (  # noqa: E402
+    FoodDataUnavailableError,
+    ProductData,
+    get_food_data_provider,
+)
 
 TEST_ISSUER = f"{os.environ['SUPABASE_URL']}/auth/v1"
 TEST_JWT_SECRET = "test-only-hs256-secret-at-least-32-bytes-long"
+
+
+class FakeFoodDataProvider:
+    """In-memory stand-in for Open Food Facts. Records every barcode it's asked for."""
+
+    source = "fake"
+
+    def __init__(self) -> None:
+        self.products: dict[str, ProductData] = {}
+        self.unavailable = False
+        self.calls: list[str] = []
+
+    def lookup(self, barcode: str) -> ProductData | None:
+        self.calls.append(barcode)
+        if self.unavailable:
+            raise FoodDataUnavailableError("fake outage")
+        return self.products.get(barcode)
+
+
+@pytest.fixture
+def food_provider() -> FakeFoodDataProvider:
+    return FakeFoodDataProvider()
 
 
 @pytest.fixture
@@ -38,10 +67,12 @@ def session() -> Iterator[Session]:
 
 
 @pytest.fixture
-def client(session: Session) -> Iterator[TestClient]:
-    """App wired to the test DB, verifying tokens signed with TEST_JWT_SECRET."""
+def client(session: Session, food_provider: FakeFoodDataProvider) -> Iterator[TestClient]:
+    """App wired to the test DB and fake providers, verifying tokens signed with
+    TEST_JWT_SECRET."""
     app = create_app()
     app.dependency_overrides[get_session] = lambda: session
+    app.dependency_overrides[get_food_data_provider] = lambda: food_provider
     app.dependency_overrides[get_token_verifier] = lambda: SupabaseTokenVerifier(
         Settings(supabase_jwt_secret=TEST_JWT_SECRET)
     )

@@ -2,7 +2,8 @@ from uuid import UUID
 
 from sqlmodel import Session
 
-from app.models.item import Item, Location, utcnow
+from app.core.time import utcnow
+from app.models.item import Item, Location
 from app.repositories import items as items_repo
 from app.schemas.item import ItemCreate, ItemUpdate
 from app.services.errors import NotFoundError

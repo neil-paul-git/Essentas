@@ -5,5 +5,6 @@ autogenerate can see all tables on SQLModel.metadata.
 """
 
 from app.models.item import Item, Location
+from app.models.product import Product
 
-__all__ = ["Item", "Location"]
+__all__ = ["Item", "Location", "Product"]

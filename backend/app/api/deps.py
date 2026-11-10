@@ -13,6 +13,7 @@ from sqlmodel import Session
 
 from app.db.session import get_session
 from app.providers.auth import TokenVerifier, get_token_verifier
+from app.providers.food_data import FoodDataProvider, get_food_data_provider
 
 logger = logging.getLogger(__name__)
 
@@ -61,3 +62,4 @@ def get_current_user(
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 SessionDep = Annotated[Session, Depends(get_session)]
+FoodDataProviderDep = Annotated[FoodDataProvider, Depends(get_food_data_provider)]

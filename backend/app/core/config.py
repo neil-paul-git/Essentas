@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # asymmetric signing keys; the API then fetches Supabase's public keys (JWKS) instead.
     supabase_jwt_secret: str | None = None
 
+    # Open Food Facts asks every app to identify itself with a contact in the User-Agent.
+    off_base_url: str = "https://world.openfoodfacts.org"
+    off_contact: str = "https://github.com/neil-paul-git/Essentas"
+    off_timeout_seconds: float = 5.0
+
     @field_validator("database_url")
     @classmethod
     def use_psycopg_driver(cls, url: str) -> str:
