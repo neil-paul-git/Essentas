@@ -26,11 +26,25 @@ def lookup_product(
     now: datetime | None = None,
 ) -> Product:
     """Return the product for a barcode, or raise NotFoundError / ServiceUnavailableError."""
+    return _found_or_raise(get_or_fetch(session, provider, barcode, now))
+
+
+def get_or_fetch(
+    session: Session,
+    provider: FoodDataProvider,
+    barcode: str,
+    now: datetime | None = None,
+) -> Product:
+    """Return the products row for a barcode, fetching it if missing or stale.
+
+    The row may have found=False (a cached miss). Raises ServiceUnavailableError only
+    when the provider is down and we have nothing cached at all.
+    """
     now = now or utcnow()
     cached = products_repo.get(session, barcode)
 
     if cached is not None and _is_fresh(cached, now):
-        return _found_or_raise(cached)
+        return cached
 
     try:
         data = provider.lookup(barcode)
@@ -38,19 +52,18 @@ def lookup_product(
         if cached is not None:
             # An old answer beats no answer while the provider is down or rate-limited.
             logger.info("Serving stale product %s: provider unavailable", barcode)
-            return _found_or_raise(cached)
+            return cached
         logger.warning("Product lookup failed for %s", barcode, exc_info=True)
         raise ServiceUnavailableError("Product lookup is temporarily unavailable") from None
 
     product = cached or Product(barcode=barcode, found=False, source=provider.source)
     _apply(product, data, provider.source, now)
     try:
-        products_repo.save(session, product)
+        return products_repo.save(session, product)
     except IntegrityError:
         # Two requests for the same new barcode raced; the other one saved it first.
         session.rollback()
-        product = products_repo.get(session, barcode) or product
-    return _found_or_raise(product)
+        return products_repo.get(session, barcode) or product
 
 
 def _is_fresh(product: Product, now: datetime) -> bool:

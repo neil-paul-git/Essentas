@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path
 
 from app.api.deps import FoodDataProviderDep, SessionDep, get_current_user
-from app.schemas.product import ProductRead
+from app.schemas.product import BARCODE_PATTERN, ProductRead
 from app.services import products as products_service
 
 # Login required: only signed-in users can make us spend Open Food Facts quota.
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/products", tags=["products"], dependencies=[Depends(
 
 Barcode = Annotated[
     str,
-    Path(pattern=r"^\d{8,14}$", description="EAN-8, UPC-A, EAN-13 or GTIN-14 (digits only)"),
+    Path(pattern=BARCODE_PATTERN, description="EAN-8, UPC-A, EAN-13 or GTIN-14 (digits only)"),
 ]
 
 

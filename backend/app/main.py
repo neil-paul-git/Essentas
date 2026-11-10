@@ -3,11 +3,17 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1 import api_router
 from app.core.config import get_settings
-from app.services.errors import NotFoundError, ServiceUnavailableError
+from app.services.errors import InvalidInputError, NotFoundError, ServiceUnavailableError
 
 
 async def _not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(exc)})
+
+
+async def _invalid_input_handler(request: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, content={"detail": str(exc)}
+    )
 
 
 async def _unavailable_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -25,6 +31,7 @@ def create_app() -> FastAPI:
     # Services raise these domain errors; the handlers turn them into HTTP responses,
     # so routes stay thin and services don't know about HTTP.
     app.add_exception_handler(NotFoundError, _not_found_handler)
+    app.add_exception_handler(InvalidInputError, _invalid_input_handler)
     app.add_exception_handler(ServiceUnavailableError, _unavailable_handler)
     return app
 

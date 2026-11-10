@@ -3,9 +3,10 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.time import utcnow
+from app.models.product import Product
 
 
 class Location(StrEnum):
@@ -41,3 +42,14 @@ class Item(SQLModel, table=True):
     expires_on: date | None = None
     created_at: datetime = Field(default_factory=utcnow, sa_type=sa.DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=utcnow, sa_type=sa.DateTime(timezone=True))
+
+    # Optional link to the cached product. The foreign key makes the database guarantee
+    # the barcode exists in products; SET NULL means pruning the cache only unlinks items.
+    barcode: str | None = Field(
+        default=None,
+        max_length=14,
+        foreign_key="products.barcode",
+        ondelete="SET NULL",
+        index=True,
+    )
+    product: Product | None = Relationship()

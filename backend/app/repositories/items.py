@@ -1,12 +1,17 @@
 from uuid import UUID
 
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, col, select
 
 from app.models.item import Item, Location
 
 
 def list_for_user(session: Session, user_id: UUID, location: Location | None = None) -> list[Item]:
-    statement = select(Item).where(Item.user_id == user_id)
+    # selectinload fetches all the linked products in one extra query. Without it,
+    # reading item.product would run one query per item (the "N+1" problem).
+    statement = (
+        select(Item).where(Item.user_id == user_id).options(selectinload(Item.product))  # type: ignore[arg-type]
+    )
     if location is not None:
         statement = statement.where(Item.location == location)
     statement = statement.order_by(col(Item.created_at).desc())

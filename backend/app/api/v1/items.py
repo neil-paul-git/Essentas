@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, status
 
-from app.api.deps import CurrentUserDep, SessionDep
+from app.api.deps import CurrentUserDep, FoodDataProviderDep, SessionDep
 from app.models.item import Location
 from app.schemas.item import ItemCreate, ItemRead, ItemUpdate
 from app.services import items as items_service
@@ -11,8 +11,10 @@ router = APIRouter(prefix="/items", tags=["items"])
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
-def create_item(data: ItemCreate, user: CurrentUserDep, session: SessionDep) -> ItemRead:
-    item = items_service.create_item(session, user.id, data)
+def create_item(
+    data: ItemCreate, user: CurrentUserDep, session: SessionDep, provider: FoodDataProviderDep
+) -> ItemRead:
+    item = items_service.create_item(session, provider, user.id, data)
     return ItemRead.model_validate(item)
 
 
@@ -31,9 +33,13 @@ def get_item(item_id: UUID, user: CurrentUserDep, session: SessionDep) -> ItemRe
 
 @router.patch("/{item_id}", response_model=ItemRead)
 def update_item(
-    item_id: UUID, data: ItemUpdate, user: CurrentUserDep, session: SessionDep
+    item_id: UUID,
+    data: ItemUpdate,
+    user: CurrentUserDep,
+    session: SessionDep,
+    provider: FoodDataProviderDep,
 ) -> ItemRead:
-    item = items_service.update_item(session, user.id, item_id, data)
+    item = items_service.update_item(session, provider, user.id, item_id, data)
     return ItemRead.model_validate(item)
 
 
