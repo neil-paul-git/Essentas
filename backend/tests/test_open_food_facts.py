@@ -21,6 +21,10 @@ FOUND_BODY = {
         "quantity": "400 g",
         "categories_tags": ["en:spreads", "en:sweet-spreads", 42],
         "image_front_small_url": "https://images.openfoodfacts.org/nutella.jpg",
+        "allergens_tags": ["en:milk", "en:nuts", "en:soybeans"],
+        "traces_tags": ["en:gluten"],
+        "ingredients_analysis_tags": ["en:palm-oil", "en:non-vegan", "en:vegetarian"],
+        "labels_tags": ["en:no-gluten", None],
     },
 }
 
@@ -50,10 +54,17 @@ def test_found_product_is_parsed() -> None:
         quantity_text="400 g",
         categories=["en:spreads", "en:sweet-spreads"],  # non-strings dropped
         image_url="https://images.openfoodfacts.org/nutella.jpg",
+        allergens=["en:milk", "en:nuts", "en:soybeans"],
+        traces=["en:gluten"],
+        ingredients_analysis=["en:palm-oil", "en:non-vegan", "en:vegetarian"],
+        labels=["en:no-gluten"],  # non-strings dropped
     )
     (request,) = requests
     assert request.url.path == f"/api/v2/product/{BARCODE}"
-    assert "product_name" in request.url.params["fields"]
+    fields = request.url.params["fields"].split(",")
+    for name in ("product_name", "allergens_tags", "traces_tags", "ingredients_analysis_tags",
+                 "labels_tags"):  # fmt: skip
+        assert name in fields
     assert request.headers["User-Agent"] == "Essentas/0.1.0 (https://github.com/example/essentas)"
 
 
@@ -63,6 +74,15 @@ def test_blank_and_missing_fields_become_none() -> None:
     result = _provider(lambda r: httpx.Response(200, json=body)).lookup(BARCODE)
 
     assert result == ProductData(barcode=BARCODE)
+
+
+def test_malformed_tag_fields_become_empty_lists() -> None:
+    body = {"status": 1, "product": {"allergens_tags": "en:milk", "labels_tags": None}}
+
+    result = _provider(lambda r: httpx.Response(200, json=body)).lookup(BARCODE)
+
+    assert result is not None
+    assert result.allergens == [] and result.labels == []
 
 
 @pytest.mark.parametrize(

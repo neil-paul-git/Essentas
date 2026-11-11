@@ -38,6 +38,23 @@ def test_first_lookup_hits_provider_then_cache(client, auth_headers, food_provid
     assert food_provider.calls == [BARCODE]  # second request served from our DB
 
 
+def test_dietary_tags_are_cached(client, auth_headers, food_provider, session) -> None:
+    food_provider.products[BARCODE] = ProductData(
+        barcode=BARCODE, name="Nutella", allergens=["en:milk", "en:nuts"], traces=["en:gluten"],
+        ingredients_analysis=["en:non-vegan"], labels=["en:no-gluten"],
+    )  # fmt: skip
+
+    client.get(f"/api/v1/products/{BARCODE}", headers=auth_headers())
+
+    session.expire_all()  # read what was committed, not the request's in-memory object
+    cached = session.get(Product, BARCODE)
+    assert cached is not None
+    assert cached.allergens == ["en:milk", "en:nuts"]
+    assert cached.traces == ["en:gluten"]
+    assert cached.ingredients_analysis == ["en:non-vegan"]
+    assert cached.labels == ["en:no-gluten"]
+
+
 def test_unknown_barcode_is_404_and_miss_is_cached(client, auth_headers, food_provider) -> None:
     headers = auth_headers()
 

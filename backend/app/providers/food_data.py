@@ -15,6 +15,12 @@ class ProductData:
     quantity_text: str | None = None
     categories: list[str] = field(default_factory=list)
     image_url: str | None = None
+    # Tag lists for dietary checks, e.g. ["en:milk"], ["en:non-vegan"], ["en:halal"].
+    # Empty means "not recorded", never "none": OFF data is crowd-sourced and patchy.
+    allergens: list[str] = field(default_factory=list)
+    traces: list[str] = field(default_factory=list)  # "may contain"
+    ingredients_analysis: list[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
 
 
 class FoodDataUnavailableError(Exception):

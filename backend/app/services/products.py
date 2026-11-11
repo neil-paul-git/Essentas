@@ -84,5 +84,9 @@ def _apply(product: Product, data: ProductData | None, source: str, now: datetim
     product.quantity_text = data.quantity_text if data else None
     product.categories = list(data.categories) if data else []
     product.image_url = data.image_url if data else None
+    product.allergens = list(data.allergens) if data else []
+    product.traces = list(data.traces) if data else []
+    product.ingredients_analysis = list(data.ingredients_analysis) if data else []
+    product.labels = list(data.labels) if data else []
     product.source = source
     product.fetched_at = now

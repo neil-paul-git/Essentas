@@ -11,7 +11,10 @@ from app.providers.food_data import FoodDataUnavailableError, ProductData
 logger = logging.getLogger(__name__)
 
 # Ask only for what we store: smaller, faster responses.
-_FIELDS = "code,product_name,brands,quantity,categories_tags,image_front_small_url"
+_FIELDS = (
+    "code,product_name,brands,quantity,categories_tags,image_front_small_url,"
+    "allergens_tags,traces_tags,ingredients_analysis_tags,labels_tags"
+)
 # OFF's published limit for product reads is 15/min per IP.
 _MAX_READS_PER_MINUTE = 15
 
@@ -67,17 +70,23 @@ def _text(value: Any) -> str | None:
     return None
 
 
+def _tags(value: Any) -> list[str]:
+    """A *_tags field: should be a list of strings, but anything else becomes []."""
+    return [t for t in value if isinstance(t, str)] if isinstance(value, list) else []
+
+
 def _to_product_data(barcode: str, product: dict[str, Any]) -> ProductData:
     brands = _text(product.get("brands"))
-    categories = product.get("categories_tags")
     return ProductData(
         barcode=barcode,
         name=_text(product.get("product_name")),
         # "Ferrero, Nutella" -> "Ferrero"
         brand=_text(brands.split(",")[0]) if brands else None,
         quantity_text=_text(product.get("quantity")),
-        categories=[c for c in categories if isinstance(c, str)]
-        if isinstance(categories, list)
-        else [],
+        categories=_tags(product.get("categories_tags")),
         image_url=_text(product.get("image_front_small_url")),
+        allergens=_tags(product.get("allergens_tags")),
+        traces=_tags(product.get("traces_tags")),
+        ingredients_analysis=_tags(product.get("ingredients_analysis_tags")),
+        labels=_tags(product.get("labels_tags")),
     )
