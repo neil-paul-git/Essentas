@@ -43,6 +43,8 @@ def list_for_user(session: Session, user_id: UUID, params: ItemListParams) -> li
             )
     if params.location is not None:
         statement = statement.where(Item.location == params.location)
+    if params.category:
+        statement = statement.where(col(Item.category).in_(params.category))
     if params.expires_by is not None:
         # In SQL, NULL <= date is not true, so items with no expiry are left out.
         statement = statement.where(col(Item.expires_on) <= params.expires_by)

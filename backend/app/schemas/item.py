@@ -85,6 +85,8 @@ class ItemListParams(BaseModel):
     # Words to find in the item's name or its product's name/brand; every word must match.
     q: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
     location: Location | None = None
+    # Repeat to match any of several: ?category=fruit&category=vegetables
+    category: list[Category] | None = None
     # On or before this date, so already-expired items are included. The app sends a date
     # (e.g. its local tomorrow for "use it soon") rather than a day count, because the
     # server's "today" in UTC can differ from the user's.

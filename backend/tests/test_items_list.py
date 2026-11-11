@@ -100,6 +100,46 @@ def test_default_sort_is_newest(client, auth_headers) -> None:
     assert _names(client, headers) == ["Recent", "Old"]
 
 
+# --- Category (?category=) -------------------------------------------------------------
+
+
+def test_filter_by_one_category(client, auth_headers) -> None:
+    headers = auth_headers()
+    _create(client, headers, "Butter", location="fridge")
+    _create(client, headers, "Mystery jar")
+
+    assert _names(client, headers, category="dairy_eggs") == ["Butter"]
+    assert _names(client, headers, category="other") == ["Mystery jar"]
+
+
+def test_filter_by_several_categories(client, auth_headers) -> None:
+    headers = auth_headers()
+    _create(client, headers, "Butter", location="fridge", category="dairy_eggs")
+    _create(client, headers, "Apples", location="fridge", category="fruit")
+    _create(client, headers, "Carrots", location="fridge", category="vegetables")
+
+    response = client.get(
+        "/api/v1/items",
+        params=[("category", "fruit"), ("category", "vegetables"), ("sort", "name")],
+        headers=headers,
+    )
+
+    assert [item["name"] for item in response.json()] == ["Apples", "Carrots"]
+
+
+def test_category_combines_with_other_filters(client, auth_headers) -> None:
+    headers = auth_headers()
+    _create(client, headers, "Milk", location="fridge", category="dairy_eggs", expires_on=_day(0))
+    _create(
+        client, headers, "Cheese", location="fridge", category="dairy_eggs", expires_on=_day(30)
+    )
+    _create(client, headers, "Ham", location="fridge", category="meat_poultry", expires_on=_day(0))
+
+    names = _names(client, headers, category="dairy_eggs", expires_by=TOMORROW.isoformat())
+
+    assert names == ["Milk"]
+
+
 # --- Search (?q=) ---------------------------------------------------------------------
 
 
@@ -162,6 +202,7 @@ def test_search_combines_with_filters_and_other_users_hidden(client, auth_header
     "params",
     [
         pytest.param({"q": "x" * 101}, id="search-too-long"),
+        pytest.param({"category": "candy"}, id="unknown-category"),
         pytest.param({"sort": "price"}, id="unknown-sort"),
         pytest.param({"expires_by": "tomorrow"}, id="bad-date"),
         pytest.param({"sortt": "name"}, id="unknown-parameter"),

@@ -31,8 +31,11 @@ should never push anyone to eat food that has gone off.
 - Sort/filter control: `sort`, `location`, `expires_by` (combine freely, like a shop's
   product filters). "Use it soon" = `expires_by=<local tomorrow>&sort=expiring`,
   which already includes expired items.
-- Grid and list layouts (frontend only). Categories / food groups need a backend
-  `category` column first.
+- Grid and list layouts (frontend only).
+- Categories: `?category=dairy_eggs`, repeatable for several. Either an option in the
+  sort/filter control, or a category mode (icon grid of the 15 values in
+  `app.models.item.Category`, tap one to list its items). Users can change an item's
+  category with PATCH.
 
 ## Adding items (far future)
 
