@@ -15,7 +15,8 @@ SQLModel.metadata.naming_convention = {
     "uq": "uq_%(table_name)s_%(column_0_name)s",
 }
 
+from app.models.dietary_profile import DietaryProfile  # noqa: E402
 from app.models.item import Item, Location  # noqa: E402
 from app.models.product import Product  # noqa: E402
 
-__all__ = ["Item", "Location", "Product"]
+__all__ = ["DietaryProfile", "Item", "Location", "Product"]
