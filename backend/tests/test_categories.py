@@ -7,7 +7,7 @@ import pytest
 
 from app.models.item import Category
 from app.providers.food_data import ProductData
-from app.services.categories import _FOODKEEPER, from_foodkeeper
+from app.services.categories import _FOODKEEPER, from_foodkeeper, from_off_tags
 
 # --- The mapping ---------------------------------------------------------------------
 
@@ -23,6 +23,21 @@ def test_every_foodkeeper_category_is_mapped() -> None:
 @pytest.mark.parametrize("category", [None, "", "Something new"])
 def test_unknown_foodkeeper_category_is_other(category) -> None:
     assert from_foodkeeper(category) is Category.OTHER
+
+
+@pytest.mark.parametrize(
+    ("tags", "category"),
+    [
+        (["en:snacks", "en:salty-snacks", "en:crisps"], Category.SNACKS),
+        # most specific known tag wins: a frozen pizza is "frozen", not "meals"
+        (["en:meals", "en:pizzas", "en:frozen-foods", "en:frozen-pizzas"], Category.FROZEN),
+        (["en:plant-based-foods", "en:beverages", "en:sodas"], Category.DRINKS),
+        (["en:unknown-thing"], Category.OTHER),
+        ([], Category.OTHER),
+    ],
+)
+def test_off_tags_fallback(tags, category) -> None:
+    assert from_off_tags(tags) is category
 
 
 # --- POST /api/v1/items ----------------------------------------------------------------
@@ -74,6 +89,37 @@ def test_create_category_from_cached_product(client, auth_headers, food_provider
     )
 
     item = _create(client, auth_headers(), name="Lait", barcode="3017620422003")
+
+    assert item["category"] == "dairy_eggs"
+
+
+@pytest.mark.parametrize(
+    ("tags", "category"),
+    [
+        # FoodKeeper's keyword match on these tag texts is poor ("snacks" -> gummy fruit
+        # snacks, "sodas" -> Baking soda), so the direct tag mapping wins.
+        (["en:snacks", "en:salty-snacks", "en:crisps"], "snacks"),
+        (["en:beverages", "en:carbonated-drinks", "en:sodas"], "drinks"),
+    ],
+)
+def test_off_tags_beat_foodkeeper_match_on_tag_text(
+    client, auth_headers, food_provider, tags, category
+) -> None:
+    food_provider.products["5000328657950"] = ProductData(
+        barcode="5000328657950", name="Zesty Zingers", categories=tags
+    )
+
+    item = _create(client, auth_headers(), name="Zesty Zingers", barcode="5000328657950")
+
+    assert item["category"] == category
+
+
+def test_foodkeeper_match_on_name_beats_off_tags(client, auth_headers, food_provider) -> None:
+    food_provider.products["5000328657950"] = ProductData(
+        barcode="5000328657950", name="Salted butter", categories=["en:snacks"]
+    )
+
+    item = _create(client, auth_headers(), name="Butter", barcode="5000328657950")
 
     assert item["category"] == "dairy_eggs"
 

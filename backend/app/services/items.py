@@ -4,9 +4,10 @@ from uuid import UUID
 from sqlmodel import Session
 
 from app.core.time import utcnow
-from app.models.item import Item
+from app.models.item import Category, Item
 from app.providers.food_data import FoodDataProvider
 from app.repositories import items as items_repo
+from app.repositories import products as products_repo
 from app.schemas.item import ItemCreate, ItemListParams, ItemUpdate
 from app.services import categories
 from app.services import products as products_service
@@ -37,7 +38,7 @@ def create_item(
         if fill_expiry:
             _set_estimated_expiry(item, match)
         if fill_category:
-            _set_category(item, match)
+            _set_category(session, item, match)
     return items_repo.save(session, item)
 
 
@@ -63,8 +64,21 @@ def _set_estimated_expiry(item: Item, result: spoilage_service.SpoilageEstimate 
     item.expiry_estimated = found
 
 
-def _set_category(item: Item, result: spoilage_service.SpoilageEstimate | None) -> None:
-    item.category = categories.from_foodkeeper(result.food.category if result else None)
+def _set_category(
+    session: Session, item: Item, result: spoilage_service.SpoilageEstimate | None
+) -> None:
+    category = categories.from_foodkeeper(result.food.category if result else None)
+    # The product was just read by the estimate, so this is usually served from the
+    # session without another query.
+    product = products_repo.get(session, item.barcode) if item.barcode else None
+    if product is not None and product.found:
+        # A FoodKeeper match on a name is trustworthy; one found only through a category
+        # tag's text is not ("sodas" matches Baking soda). Prefer our direct tag mapping.
+        weak_match = result is None or result.matched_text not in (item.name, product.name)
+        from_tags = categories.from_off_tags(product.categories)
+        if weak_match and from_tags is not Category.OTHER:
+            category = from_tags
+    item.category = category
 
 
 def list_items(session: Session, user_id: UUID, params: ItemListParams) -> list[Item]:
@@ -117,7 +131,7 @@ def update_item(
         if reestimate:
             _set_estimated_expiry(item, match)
         if recategorize:
-            _set_category(item, match)
+            _set_category(session, item, match)
     item.updated_at = utcnow()
     return items_repo.save(session, item)
 
