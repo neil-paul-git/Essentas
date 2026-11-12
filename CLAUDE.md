@@ -66,7 +66,12 @@ Backend commands run from `backend/` with the venv active.
 - Apply migrations: `alembic upgrade head` (targets `DATABASE_URL`, i.e. Supabase)
 - New migration: `alembic revision --autogenerate -m "add items table"` (review the file before applying)
 - Rebuild FoodKeeper data: `python scripts/build_foodkeeper.py` (see [docs/data-sources.md](docs/data-sources.md))
-- Mobile: `npx expo start`
+Mobile commands run from `mobile/`.
+- Mobile setup: `npm install`, then copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL`
+- Mobile dev server: `npx expo start` (scan the QR code with Expo Go)
+- Add a mobile package: `npx expo install <package>` (picks the version matching the Expo SDK)
+- Mobile typecheck: `npx tsc --noEmit`
+- Backend reachable from a phone: `uvicorn app.main:app --reload --host 0.0.0.0`
 
 ## How to work with me (important)
 I'm new to Claude Code and want **small, reviewable steps**.
@@ -100,7 +105,8 @@ I'm new to Claude Code and want **small, reviewable steps**.
 - [x] Inventory models + CRUD
 - [x] Barcode lookup with product cache (Open Food Facts; USDA fallback still to do)
 - [x] Spoilage estimates (FoodKeeper): estimate endpoint, auto-fill + re-estimate on items, "use it soon" via `GET /items?expires_by=&sort=expiring`
-- [ ] Expo app skeleton + auth
+- [x] Expo app skeleton (SDK 58, Expo Router, health check against the API)
+- [ ] Expo auth (Supabase sign-in, token sent to the API)
 - [ ] Recipe suggestions (LLM)
 - [ ] Photo recognition (LLM vision)
 
