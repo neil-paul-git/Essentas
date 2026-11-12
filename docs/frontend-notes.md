@@ -37,6 +37,13 @@ should never push anyone to eat food that has gone off.
   `app.models.item.Category`, tap one to list its items). Users can change an item's
   category with PATCH.
 
+## Recipe page
+
+- "May contain" disclaimer: when a recipe uses an item whose label lists one of the
+  user's allergens as a trace (`may_contain` from `app.services.dietary_rules`), show a
+  small note such as "Butter may contain nuts, check the label". Traces never hide a
+  recipe or count as the allergen itself.
+
 ## Adding items (far future)
 
 A single "+" button offering: barcode scan, search, photo, receipt scan.
