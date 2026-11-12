@@ -60,7 +60,8 @@ def test_no_profile_or_empty_profile_allows_everything() -> None:
         # gluten-free
         (R.GLUTEN_FREE, _item(labels=["en:no-gluten"]), Verdict.ALLOWED),
         (R.GLUTEN_FREE, _item(allergens=["en:gluten"]), Verdict.BLOCKED),
-        (R.GLUTEN_FREE, _item(allergens=["en:milk"]), Verdict.UNKNOWN),  # needs a label
+        (R.GLUTEN_FREE, _item(allergens=["en:milk"]), Verdict.ALLOWED),  # list has no gluten
+        (R.GLUTEN_FREE, _item(labels=["en:organic"]), Verdict.UNKNOWN),  # no allergen list
         (R.GLUTEN_FREE, _item(C.BAKERY), Verdict.UNKNOWN),
         (R.GLUTEN_FREE, _item(C.MEAT_POULTRY), Verdict.ALLOWED),
         (R.GLUTEN_FREE, _item(C.SEAFOOD, labels=["en:organic"]), Verdict.ALLOWED),
@@ -69,6 +70,8 @@ def test_no_profile_or_empty_profile_allows_everything() -> None:
         (R.DAIRY_FREE, _item(allergens=["en:nuts"]), Verdict.ALLOWED),
         (R.DAIRY_FREE, _item(allergens=["en:milk"]), Verdict.BLOCKED),
         (R.DAIRY_FREE, _item(C.DAIRY_EGGS), Verdict.UNKNOWN),  # eggs aren't dairy
+        (R.DAIRY_FREE, _item(C.MEAT_POULTRY), Verdict.ALLOWED),
+        (R.DAIRY_FREE, _item(C.SEAFOOD, allergens=["en:milk"]), Verdict.BLOCKED),
         # halal / kosher
         (R.HALAL, _item(labels=["en:halal"]), Verdict.ALLOWED),
         (R.HALAL, _item(C.MEAT_POULTRY), Verdict.UNKNOWN),

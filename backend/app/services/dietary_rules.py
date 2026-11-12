@@ -66,6 +66,9 @@ class _Rule:
 
 C = Category
 _PRODUCE = frozenset({C.FRUIT, C.VEGETABLES})
+# Fresh produce, meat and fish contain no gluten or dairy. Processed ones (breaded,
+# marinated in butter) list it in their allergens, and tags are checked first.
+_FRESH = _PRODUCE | {C.MEAT_POULTRY, C.SEAFOOD}
 _SEA_ANIMALS = frozenset({"en:fish", "en:crustaceans", "en:molluscs"})
 
 _RULES: dict[DietaryRestriction, _Rule] = {
@@ -86,18 +89,16 @@ _RULES: dict[DietaryRestriction, _Rule] = {
     ),
     DietaryRestriction.GLUTEN_FREE: _Rule(
         block_allergens=frozenset({"en:gluten"}),
-        # Only a label counts, not "no gluten in the allergen list": coeliacs also need
-        # to avoid cross-contamination, which only a certified label covers.
         allow_tags=frozenset({"en:no-gluten", "en:gluten-free"}),
-        # Fresh meat and fish have no gluten; breaded ones list gluten, which blocks first.
-        allow_categories=_PRODUCE | {C.MEAT_POULTRY, C.SEAFOOD},
+        allow_if_allergens_recorded=True,
+        allow_categories=_FRESH,
     ),
     DietaryRestriction.DAIRY_FREE: _Rule(
         block_allergens=frozenset({"en:milk"}),
         # dairy_eggs is neither blocked nor allowed: eggs aren't dairy.
         allow_tags=frozenset({"en:vegan"}),
-        allow_categories=_PRODUCE,
         allow_if_allergens_recorded=True,
+        allow_categories=_FRESH,
     ),
     # We can't prove something isn't halal, so these never block on missing labels.
     DietaryRestriction.HALAL: _Rule(allow_tags=frozenset({"en:halal"}), allow_categories=_PRODUCE),
